@@ -76,25 +76,9 @@ class ModuleController extends Controller
      */
     public function update(Request $request, $id): JsonResponse
     {
-        [$user, $erreur] = $this->authentifierUtilisateur();
+        [, $module, $erreur] = $this->chargerModuleAutorise($id);
         if ($erreur) {
             return $erreur;
-        }
-
-        if ($user->role !== 'formateur') {
-            return response()->json(['message' => 'Seul un formateur peut modifier un module'], 403);
-        }
-
-        $module = Module::find($id);
-
-        if (! $module) {
-            return response()->json(['message' => self::MSG_MODULE_INTRO], 404);
-        }
-
-        $formation = Formation::find($module->formation_id);
-
-        if (! $formation || $formation->formateur_id !== $user->id) {
-            return response()->json(['message' => 'Action non autorisée'], 403);
         }
 
         $data = $request->validate($this->moduleRules());
@@ -117,25 +101,9 @@ class ModuleController extends Controller
      */
     public function destroy($id): JsonResponse
     {
-        [$user, $erreur] = $this->authentifierUtilisateur();
+        [, $module, $erreur] = $this->chargerModuleAutorise($id);
         if ($erreur) {
             return $erreur;
-        }
-
-        if ($user->role !== 'formateur') {
-            return response()->json(['message' => 'Seul un formateur peut supprimer un module'], 403);
-        }
-
-        $module = Module::find($id);
-
-        if (! $module) {
-            return response()->json(['message' => self::MSG_MODULE_INTRO], 404);
-        }
-
-        $formation = Formation::find($module->formation_id);
-
-        if (! $formation || $formation->formateur_id !== $user->id) {
-            return response()->json(['message' => 'Action non autorisée'], 403);
         }
 
         $module->delete();
@@ -206,6 +174,34 @@ class ModuleController extends Controller
     }
 
     // ─── Helpers prives ──────────────────────────────────────────
+
+    /**
+     * Authentifie le formateur et charge le module avec verification de propriete.
+     * Retourne [$user, $module, null] ou [null, null, JsonResponse d erreur].
+     */
+    private function chargerModuleAutorise($id): array
+    {
+        [$user, $erreur] = $this->authentifierUtilisateur();
+        if ($erreur) {
+            return [null, null, $erreur];
+        }
+
+        if ($user->role !== 'formateur') {
+            return [null, null, response()->json(['message' => 'Action non autorisée'], 403)];
+        }
+
+        $module = Module::find($id);
+        if (! $module) {
+            return [null, null, response()->json(['message' => self::MSG_MODULE_INTRO], 404)];
+        }
+
+        $formation = Formation::find($module->formation_id);
+        if (! $formation || $formation->formateur_id !== $user->id) {
+            return [null, null, response()->json(['message' => 'Action non autorisée'], 403)];
+        }
+
+        return [$user, $module, null];
+    }
 
     private function moduleRules(): array
     {
