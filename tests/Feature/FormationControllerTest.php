@@ -16,9 +16,8 @@ class FormationControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    // -------------------------------------------------------------------------
     // Helpers
-    // -------------------------------------------------------------------------
+
 
     private function creerUser(string $role): array
     {
@@ -60,9 +59,9 @@ class FormationControllerTest extends TestCase
         ], $overrides);
     }
 
-    // -------------------------------------------------------------------------
+
     // GET /formations (index)
-    // -------------------------------------------------------------------------
+
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function index_retourne_toutes_les_formations(): void
@@ -126,9 +125,9 @@ class FormationControllerTest extends TestCase
         $this->assertCount(0, $response->json());
     }
 
-    // -------------------------------------------------------------------------
+
     // GET /formations/{id} (show)
-    // -------------------------------------------------------------------------
+
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function show_retourne_une_formation_existante(): void
@@ -175,9 +174,9 @@ class FormationControllerTest extends TestCase
         $this->assertEquals(1, $formation->fresh()->nombre_de_vues);
     }
 
-    // -------------------------------------------------------------------------
+
     // POST /formations (store)
-    // -------------------------------------------------------------------------
+
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function store_cree_formation_pour_formateur_authentifie(): void
@@ -261,9 +260,9 @@ class FormationControllerTest extends TestCase
             ->assertJsonValidationErrors(['titre']);
     }
 
-    // -------------------------------------------------------------------------
+
     // PUT /formations/{id} (update)
-    // -------------------------------------------------------------------------
+
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function update_modifie_formation_par_son_formateur(): void
@@ -322,9 +321,9 @@ class FormationControllerTest extends TestCase
         $response->assertStatus(401);
     }
 
-    // -------------------------------------------------------------------------
+
     // DELETE /formations/{id} (destroy)
-    // -------------------------------------------------------------------------
+
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function destroy_supprime_formation_par_son_formateur(): void
