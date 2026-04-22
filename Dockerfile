@@ -52,4 +52,7 @@ RUN chown -R www-data:www-data storage bootstrap/cache \
 
 EXPOSE 9000
 
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["php-fpm"]
