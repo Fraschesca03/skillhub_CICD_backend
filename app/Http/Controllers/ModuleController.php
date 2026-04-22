@@ -7,17 +7,13 @@ use App\Models\Inscription;
 use App\Models\Module;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Tymon\JWTAuth\Facades\JWTAuth;
-use Tymon\JWTAuth\Exceptions\JWTException;
 
 /**
  * Controleur de gestion des modules.
  */
 class ModuleController extends Controller
 {
-    private const MSG_TOKEN_INVALIDE  = 'Token invalide ou absent';
-    private const MSG_USER_NON_TROUVE = 'Utilisateur non trouvé';
-    private const MSG_MODULE_INTRO    = 'Module introuvable';
+    private const MSG_MODULE_INTRO = 'Module introuvable';
 
     /**
      * Lister les modules d une formation (acces public).
@@ -38,49 +34,40 @@ class ModuleController extends Controller
      */
     public function store(Request $request, $formationId): JsonResponse
     {
-        $reponse = response()->json(['message' => self::MSG_TOKEN_INVALIDE], 401);
-
-        try {
-            $user = JWTAuth::parseToken()->authenticate();
-
-            if (! $user) {
-                $reponse = response()->json(['message' => self::MSG_USER_NON_TROUVE], 404);
-            } elseif ($user->role !== 'formateur') {
-                $reponse = response()->json(['message' => 'Seul un formateur peut créer un module'], 403);
-            } else {
-                $formation = Formation::find($formationId);
-
-                if (! $formation) {
-                    $reponse = response()->json(['message' => 'Formation introuvable'], 404);
-                } elseif ($formation->formateur_id !== $user->id) {
-                    $reponse = response()->json([
-                        'message' => 'Vous ne pouvez pas modifier une formation qui ne vous appartient pas',
-                    ], 403);
-                } else {
-                    $data   = $request->validate([
-                        'titre'   => 'required|string|max:255',
-                        'contenu' => 'required|string',
-                        'ordre'   => 'required|integer|min:1',
-                    ]);
-
-                    $module = Module::create([
-                        'titre'        => $data['titre'],
-                        'contenu'      => $data['contenu'],
-                        'ordre'        => $data['ordre'],
-                        'formation_id' => $formationId,
-                    ]);
-
-                    $reponse = response()->json([
-                        'message' => 'Module créé avec succès',
-                        'module'  => $module,
-                    ], 201);
-                }
-            }
-        } catch (JWTException $e) {
-            // reponse 401 deja definie
+        [$user, $erreur] = $this->authentifierUtilisateur();
+        if ($erreur) {
+            return $erreur;
         }
 
-        return $reponse;
+        if ($user->role !== 'formateur') {
+            return response()->json(['message' => 'Seul un formateur peut créer un module'], 403);
+        }
+
+        $formation = Formation::find($formationId);
+
+        if (! $formation) {
+            return response()->json(['message' => 'Formation introuvable'], 404);
+        }
+
+        if ($formation->formateur_id !== $user->id) {
+            return response()->json([
+                'message' => 'Vous ne pouvez pas modifier une formation qui ne vous appartient pas',
+            ], 403);
+        }
+
+        $data = $request->validate($this->moduleRules());
+
+        $module = Module::create([
+            'titre'        => $data['titre'],
+            'contenu'      => $data['contenu'],
+            'ordre'        => $data['ordre'],
+            'formation_id' => $formationId,
+        ]);
+
+        return response()->json([
+            'message' => 'Module créé avec succès',
+            'module'  => $module,
+        ], 201);
     }
 
     /**
@@ -89,50 +76,39 @@ class ModuleController extends Controller
      */
     public function update(Request $request, $id): JsonResponse
     {
-        $reponse = response()->json(['message' => self::MSG_TOKEN_INVALIDE], 401);
-
-        try {
-            $user = JWTAuth::parseToken()->authenticate();
-
-            if (! $user) {
-                $reponse = response()->json(['message' => self::MSG_USER_NON_TROUVE], 404);
-            } elseif ($user->role !== 'formateur') {
-                $reponse = response()->json(['message' => 'Seul un formateur peut modifier un module'], 403);
-            } else {
-                $module = Module::find($id);
-
-                if (! $module) {
-                    $reponse = response()->json(['message' => self::MSG_MODULE_INTRO], 404);
-                } else {
-                    $formation = Formation::find($module->formation_id);
-
-                    if (! $formation || $formation->formateur_id !== $user->id) {
-                        $reponse = response()->json(['message' => 'Action non autorisée'], 403);
-                    } else {
-                        $data = $request->validate([
-                            'titre'   => 'required|string|max:255',
-                            'contenu' => 'required|string',
-                            'ordre'   => 'required|integer|min:1',
-                        ]);
-
-                        $module->update([
-                            'titre'   => $data['titre'],
-                            'contenu' => $data['contenu'],
-                            'ordre'   => $data['ordre'],
-                        ]);
-
-                        $reponse = response()->json([
-                            'message' => 'Module mis à jour avec succès',
-                            'module'  => $module,
-                        ]);
-                    }
-                }
-            }
-        } catch (JWTException $e) {
-            // reponse 401 deja definie
+        [$user, $erreur] = $this->authentifierUtilisateur();
+        if ($erreur) {
+            return $erreur;
         }
 
-        return $reponse;
+        if ($user->role !== 'formateur') {
+            return response()->json(['message' => 'Seul un formateur peut modifier un module'], 403);
+        }
+
+        $module = Module::find($id);
+
+        if (! $module) {
+            return response()->json(['message' => self::MSG_MODULE_INTRO], 404);
+        }
+
+        $formation = Formation::find($module->formation_id);
+
+        if (! $formation || $formation->formateur_id !== $user->id) {
+            return response()->json(['message' => 'Action non autorisée'], 403);
+        }
+
+        $data = $request->validate($this->moduleRules());
+
+        $module->update([
+            'titre'   => $data['titre'],
+            'contenu' => $data['contenu'],
+            'ordre'   => $data['ordre'],
+        ]);
+
+        return response()->json([
+            'message' => 'Module mis à jour avec succès',
+            'module'  => $module,
+        ]);
     }
 
     /**
@@ -141,36 +117,30 @@ class ModuleController extends Controller
      */
     public function destroy($id): JsonResponse
     {
-        $reponse = response()->json(['message' => self::MSG_TOKEN_INVALIDE], 401);
-
-        try {
-            $user = JWTAuth::parseToken()->authenticate();
-
-            if (! $user) {
-                $reponse = response()->json(['message' => self::MSG_USER_NON_TROUVE], 404);
-            } elseif ($user->role !== 'formateur') {
-                $reponse = response()->json(['message' => 'Seul un formateur peut supprimer un module'], 403);
-            } else {
-                $module = Module::find($id);
-
-                if (! $module) {
-                    $reponse = response()->json(['message' => self::MSG_MODULE_INTRO], 404);
-                } else {
-                    $formation = Formation::find($module->formation_id);
-
-                    if (! $formation || $formation->formateur_id !== $user->id) {
-                        $reponse = response()->json(['message' => 'Action non autorisée'], 403);
-                    } else {
-                        $module->delete();
-                        $reponse = response()->json(['message' => 'Module supprimé avec succès']);
-                    }
-                }
-            }
-        } catch (JWTException $e) {
-            // reponse 401 deja definie
+        [$user, $erreur] = $this->authentifierUtilisateur();
+        if ($erreur) {
+            return $erreur;
         }
 
-        return $reponse;
+        if ($user->role !== 'formateur') {
+            return response()->json(['message' => 'Seul un formateur peut supprimer un module'], 403);
+        }
+
+        $module = Module::find($id);
+
+        if (! $module) {
+            return response()->json(['message' => self::MSG_MODULE_INTRO], 404);
+        }
+
+        $formation = Formation::find($module->formation_id);
+
+        if (! $formation || $formation->formateur_id !== $user->id) {
+            return response()->json(['message' => 'Action non autorisée'], 403);
+        }
+
+        $module->delete();
+
+        return response()->json(['message' => 'Module supprimé avec succès']);
     }
 
     /**
@@ -179,66 +149,70 @@ class ModuleController extends Controller
      */
     public function terminer($id): JsonResponse
     {
-        $reponse = response()->json(['message' => self::MSG_TOKEN_INVALIDE], 401);
-
-        try {
-            $user = JWTAuth::parseToken()->authenticate();
-
-            if (! $user) {
-                $reponse = response()->json(['message' => self::MSG_USER_NON_TROUVE], 404);
-            } elseif ($user->role !== 'apprenant') {
-                $reponse = response()->json(['message' => 'Seul un apprenant peut terminer un module'], 403);
-            } else {
-                $module = Module::find($id);
-
-                if (! $module) {
-                    $reponse = response()->json(['message' => self::MSG_MODULE_INTRO], 404);
-                } else {
-                    $inscription = Inscription::where('utilisateur_id', $user->id)
-                        ->where('formation_id', $module->formation_id)
-                        ->first();
-
-                    if (! $inscription) {
-                        $reponse = response()->json([
-                            'message' => "Vous n'êtes pas inscrit à cette formation",
-                        ], 403);
-                    } else {
-                        $dejaTermine = $user->modulesTermines()
-                            ->where('modules.id', $module->id)
-                            ->exists();
-
-                        if ($dejaTermine) {
-                            $reponse = response()->json([
-                                'message'     => 'Ce module est déjà terminé',
-                                'progression' => $inscription->progression,
-                            ]);
-                        } else {
-                            $user->modulesTermines()->attach($module->id, ['termine' => true]);
-
-                            $totalModules    = Module::where('formation_id', $module->formation_id)->count();
-                            $modulesTermines = $user->modulesTermines()
-                                ->where('formation_id', $module->formation_id)
-                                ->count();
-
-                            $progression = $totalModules > 0
-                                ? round(($modulesTermines / $totalModules) * 100)
-                                : 0;
-
-                            $inscription->progression = $progression;
-                            $inscription->save();
-
-                            $reponse = response()->json([
-                                'message'     => 'Module terminé avec succès',
-                                'progression' => $inscription->progression,
-                            ]);
-                        }
-                    }
-                }
-            }
-        } catch (JWTException $e) {
-            // reponse 401 deja definie
+        [$user, $erreur] = $this->authentifierUtilisateur();
+        if ($erreur) {
+            return $erreur;
         }
 
-        return $reponse;
+        if ($user->role !== 'apprenant') {
+            return response()->json(['message' => 'Seul un apprenant peut terminer un module'], 403);
+        }
+
+        $module = Module::find($id);
+
+        if (! $module) {
+            return response()->json(['message' => self::MSG_MODULE_INTRO], 404);
+        }
+
+        $inscription = Inscription::where('utilisateur_id', $user->id)
+            ->where('formation_id', $module->formation_id)
+            ->first();
+
+        if (! $inscription) {
+            return response()->json([
+                'message' => "Vous n'êtes pas inscrit à cette formation",
+            ], 403);
+        }
+
+        $dejaTermine = $user->modulesTermines()
+            ->where('modules.id', $module->id)
+            ->exists();
+
+        if ($dejaTermine) {
+            return response()->json([
+                'message'     => 'Ce module est déjà terminé',
+                'progression' => $inscription->progression,
+            ]);
+        }
+
+        $user->modulesTermines()->attach($module->id, ['termine' => true]);
+
+        $totalModules    = Module::where('formation_id', $module->formation_id)->count();
+        $modulesTermines = $user->modulesTermines()
+            ->where('formation_id', $module->formation_id)
+            ->count();
+
+        $progression = $totalModules > 0
+            ? round(($modulesTermines / $totalModules) * 100)
+            : 0;
+
+        $inscription->progression = $progression;
+        $inscription->save();
+
+        return response()->json([
+            'message'     => 'Module terminé avec succès',
+            'progression' => $inscription->progression,
+        ]);
+    }
+
+    // ─── Helpers prives ──────────────────────────────────────────
+
+    private function moduleRules(): array
+    {
+        return [
+            'titre'   => 'required|string|max:255',
+            'contenu' => 'required|string',
+            'ordre'   => 'required|integer|min:1',
+        ];
     }
 }
