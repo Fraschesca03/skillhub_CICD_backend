@@ -119,7 +119,8 @@ jobs:
 
       - name: Test de sante de l image
         run: |
-          IMAGE=ghcr.io/${{ github.repository_owner }}/skillhub-api:sha-$(echo ${{ github.sha }} | cut -c1-7)
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          IMAGE=ghcr.io/$OWNER/skillhub-api:sha-$(echo ${{ github.sha }} | cut -c1-7)
           docker pull $IMAGE
           docker run --rm $IMAGE php -v
           docker run --rm $IMAGE php -m | grep -E "pdo_mysql|mongodb|gd|mbstring"
