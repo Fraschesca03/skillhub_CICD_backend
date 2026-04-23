@@ -29,19 +29,23 @@ RUN composer install \
 COPY . .
 
 # Executer les scripts maintenant qu'artisan est present
-RUN php artisan package:discover --ansi \
-    && composer dump-autoload --optimize
+RUN cp .env.example .env \
+    && php artisan key:generate --force \
+    && php artisan package:discover --ansi \
+    && composer dump-autoload --optimize \
+    && rm .env
 
 # Stage 2 : runtime
 FROM php:8.2-fpm-alpine AS runtime
 
 RUN apk add --no-cache \
     libpng-dev oniguruma-dev libxml2-dev \
+    openssl-dev openssl \
     autoconf g++ make \
     && docker-php-ext-install pdo pdo_mysql mbstring exif bcmath gd \
     && pecl install mongodb \
     && docker-php-ext-enable mongodb \
-    && apk del autoconf g++ make
+    && apk del autoconf g++ make openssl-dev
 
 WORKDIR /var/www/html
 
@@ -52,4 +56,8 @@ RUN chown -R www-data:www-data storage bootstrap/cache \
 
 EXPOSE 9000
 
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["php-fpm"]
+
