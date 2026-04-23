@@ -122,6 +122,6 @@ jobs:
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           IMAGE=ghcr.io/$OWNER/skillhub-api:sha-$(echo ${{ github.sha }} | cut -c1-7)
           docker pull $IMAGE
-          docker run --rm $IMAGE php -v
-          docker run --rm $IMAGE php -m | grep -E "pdo_mysql|mongodb|gd|mbstring"
-          docker run --rm $IMAGE php artisan --version
+          docker run --rm --entrypoint php $IMAGE -v
+          docker run --rm --entrypoint php $IMAGE -m | grep -E "pdo_mysql|mongodb|gd|mbstring"
+          docker run --rm --entrypoint php $IMAGE artisan --version
