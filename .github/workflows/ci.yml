@@ -1,9 +1,11 @@
 name: CI - SkillHub Backend
+
 on:
   push:
     branches: [main, dev]
   pull_request:
     branches: [main, dev]
+
 jobs:
   test:
     name: Lint, Tests et Couverture
@@ -14,84 +16,111 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: skillhub_test
-        ports:
-          - 3306:3306
+        ports: ["3306:3306"]
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
       mongodb:
         image: mongo:6
-        ports:
-          - 27017:27017
+        ports: ["27017:27017"]
         options: >-
           --health-cmd "mongosh --eval 'db.runCommand(\"ping\").ok'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
-      - name: Checkout du code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Installation de PHP 8.2
-        uses: shivammathur/setup-php@v2
+
+      - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.2"
           extensions: mbstring, xml, pdo_mysql, pdo_sqlite, mongodb-2.2.0, pcov, gd
           coverage: pcov
-      - name: Cache Composer
-        uses: actions/cache@v4
+
+      - uses: actions/cache@v4
         with:
           path: vendor
           key: composer-${{ hashFiles('composer.lock') }}
           restore-keys: composer-
-      - name: Installation des dependances
-        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - run: composer install --prefer-dist --no-progress --no-interaction
+
       - name: Lint PHP
-        run: find app routes -name "*.php" | xargs php -l
-      - name: Generation du fichier .env
+        run: find app routes -name "*.php" | xargs -n1 php -l
+
+      - name: Generation du fichier .env de test
         run: |
-          printf 'APP_NAME=SkillHub\n' > .env
-          printf 'APP_ENV=testing\n' >> .env
-          printf 'APP_KEY=\n' >> .env
-          printf 'APP_DEBUG=true\n' >> .env
-          printf 'APP_URL=http://localhost\n' >> .env
-          printf 'DB_CONNECTION=mysql\n' >> .env
-          printf 'DB_HOST=127.0.0.1\n' >> .env
-          printf 'DB_PORT=3306\n' >> .env
-          printf 'DB_DATABASE=skillhub_test\n' >> .env
-          printf 'DB_USERNAME=root\n' >> .env
-          printf 'DB_PASSWORD=root\n' >> .env
-          printf 'MONGO_HOST=127.0.0.1\n' >> .env
-          printf 'MONGO_PORT=27017\n' >> .env
-          printf 'MONGO_DATABASE=skillhub_test\n' >> .env
-          printf 'JWT_SECRET=skillhub_ci_test_secret_key_32chars_ok\n' >> .env
-          printf 'JWT_TTL=60\n' >> .env
-          printf 'JWT_REFRESH_TTL=20160\n' >> .env
-          printf 'JWT_BLACKLIST_ENABLED=true\n' >> .env
-          printf 'MAIL_MAILER=array\n' >> .env
-          printf 'CACHE_STORE=array\n' >> .env
-          printf 'QUEUE_CONNECTION=sync\n' >> .env
-          printf 'SESSION_DRIVER=array\n' >> .env
-      - name: Generation de la cle applicative
-        run: php artisan key:generate
-      - name: Migration base de donnees
-        run: php artisan migrate --force
-      - name: Creation du dossier build/logs
-        run: mkdir -p build/logs
-      - name: Tests avec couverture de code
-        run: php artisan test --coverage-clover=build/logs/clover.xml --log-junit=build/logs/junit.xml
+          cp .env.example .env
+          sed -i 's|^APP_ENV=.*|APP_ENV=testing|' .env
+          sed -i 's|^APP_DEBUG=.*|APP_DEBUG=true|' .env
+          sed -i 's|^DB_HOST=.*|DB_HOST=127.0.0.1|' .env
+          sed -i 's|^DB_DATABASE=.*|DB_DATABASE=skillhub_test|' .env
+          sed -i 's|^DB_USERNAME=.*|DB_USERNAME=root|' .env
+          sed -i 's|^DB_PASSWORD=.*|DB_PASSWORD=root|' .env
+          sed -i 's|^MONGO_HOST=.*|MONGO_HOST=127.0.0.1|' .env
+          sed -i 's|^MONGO_DATABASE=.*|MONGO_DATABASE=skillhub_test|' .env
+          sed -i 's|^CACHE_STORE=.*|CACHE_STORE=array|' .env
+          sed -i 's|^SESSION_DRIVER=.*|SESSION_DRIVER=array|' .env
+          sed -i 's|^QUEUE_CONNECTION=.*|QUEUE_CONNECTION=sync|' .env
+          echo "JWT_SECRET=skillhub_ci_test_secret_key_32chars_ok" >> .env
+
+      - run: php artisan key:generate
+      - run: php artisan migrate --force
+      - run: mkdir -p build/logs
+      - run: php artisan test --coverage-clover=build/logs/clover.xml --log-junit=build/logs/junit.xml
+
       - name: Analyse SonarCloud
-        uses: SonarSource/sonarqube-scan-action@v6
+        uses: SonarSource/sonarqube-scan-action@v4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: "-Dsonar.php.coverage.reportPaths=build/logs/clover.xml -Dsonar.php.tests.reportPath=build/logs/junit.xml"
-  build:
-    name: Build Image Docker
+
+  build-and-push:
+    name: Build et Push Image Docker
     runs-on: ubuntu-latest
     needs: test
+    # Push seulement sur main et dev (pas sur les PR)
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Checkout du code
-        uses: actions/checkout@v4
-      - name: Build image Docker
-        run: docker build -t skillhub-api:${{ github.sha }} .
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extraction metadonnees
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/skillhub-api
+          tags: |
+            type=ref,event=branch
+            type=sha,format=short,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build et push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: runtime
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test de sante de l image
+        run: |
+          IMAGE=ghcr.io/${{ github.repository_owner }}/skillhub-api:sha-$(echo ${{ github.sha }} | cut -c1-7)
+          docker pull $IMAGE
+          docker run --rm $IMAGE php -v
+          docker run --rm $IMAGE php -m | grep -E "pdo_mysql|mongodb|gd|mbstring"
+          docker run --rm $IMAGE php artisan --version

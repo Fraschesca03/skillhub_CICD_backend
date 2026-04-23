@@ -13,10 +13,6 @@ use Tymon\JWTAuth\Exceptions\JWTException;
  */
 class AuthController extends Controller
 {
-    // Constantes pour eviter la duplication des messages d erreur
-    private const MSG_TOKEN_INVALIDE  = 'Token invalide ou absent';
-    private const MSG_USER_NON_TROUVE = 'Utilisateur non trouvé';
-
     /**
      * Inscription utilisateur.
      */
@@ -77,18 +73,12 @@ class AuthController extends Controller
      */
     public function profile(): JsonResponse
     {
-        try {
-            $user = JWTAuth::parseToken()->authenticate();
-
-            if (! $user) {
-                return response()->json(['message' => self::MSG_USER_NON_TROUVE], 404);
-            }
-
-            return response()->json(['user' => $user]);
-
-        } catch (JWTException $e) {
-            return response()->json(['message' => self::MSG_TOKEN_INVALIDE], 401);
+        [$user, $erreur] = $this->authentifierUtilisateur();
+        if ($erreur) {
+            return $erreur;
         }
+
+        return response()->json(['user' => $user]);
     }
 
     /**
@@ -112,38 +102,32 @@ class AuthController extends Controller
      */
     public function uploadPhoto(Request $request): JsonResponse
     {
-        try {
-            $user = JWTAuth::parseToken()->authenticate();
-
-            if (! $user) {
-                return response()->json(['message' => self::MSG_USER_NON_TROUVE], 404);
-            }
-
-            $request->validate([
-                'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
-            ]);
-
-            // Suppression de l ancienne photo si elle existe
-            if ($user->photo_profil && file_exists(public_path($user->photo_profil))) {
-                unlink(public_path($user->photo_profil));
-            }
-
-            // Sauvegarde de la nouvelle photo
-            $fichier    = $request->file('photo');
-            $nomFichier = 'profil_' . $user->id . '_' . time() . '.' . $fichier->getClientOriginalExtension();
-            $fichier->move(public_path('images/profils'), $nomFichier);
-
-            $user->photo_profil = '/images/profils/' . $nomFichier;
-            $user->save();
-
-            return response()->json([
-                'message'      => 'Photo mise à jour avec succès',
-                'photo_profil' => $user->photo_profil,
-                'user'         => $user,
-            ]);
-
-        } catch (JWTException $e) {
-            return response()->json(['message' => self::MSG_TOKEN_INVALIDE], 401);
+        [$user, $erreur] = $this->authentifierUtilisateur();
+        if ($erreur) {
+            return $erreur;
         }
+
+        $request->validate([
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        // Suppression de l ancienne photo si elle existe
+        if ($user->photo_profil && file_exists(public_path($user->photo_profil))) {
+            unlink(public_path($user->photo_profil));
+        }
+
+        // Sauvegarde de la nouvelle photo
+        $fichier    = $request->file('photo');
+        $nomFichier = 'profil_' . $user->id . '_' . time() . '.' . $fichier->getClientOriginalExtension();
+        $fichier->move(public_path('images/profils'), $nomFichier);
+
+        $user->photo_profil = '/images/profils/' . $nomFichier;
+        $user->save();
+
+        return response()->json([
+            'message'      => 'Photo mise à jour avec succès',
+            'photo_profil' => $user->photo_profil,
+            'user'         => $user,
+        ]);
     }
 }
