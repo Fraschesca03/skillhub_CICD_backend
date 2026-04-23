@@ -40,11 +40,12 @@ FROM php:8.2-fpm-alpine AS runtime
 
 RUN apk add --no-cache \
     libpng-dev oniguruma-dev libxml2-dev \
+    openssl-dev openssl \
     autoconf g++ make \
     && docker-php-ext-install pdo pdo_mysql mbstring exif bcmath gd \
     && pecl install mongodb \
     && docker-php-ext-enable mongodb \
-    && apk del autoconf g++ make
+    && apk del autoconf g++ make openssl-dev
 
 WORKDIR /var/www/html
 
