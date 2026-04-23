@@ -29,8 +29,11 @@ RUN composer install \
 COPY . .
 
 # Executer les scripts maintenant qu'artisan est present
-RUN php artisan package:discover --ansi \
-    && composer dump-autoload --optimize
+RUN cp .env.example .env \
+    && php artisan key:generate --force \
+    && php artisan package:discover --ansi \
+    && composer dump-autoload --optimize \
+    && rm .env
 
 # Stage 2 : runtime
 FROM php:8.2-fpm-alpine AS runtime
@@ -56,3 +59,4 @@ COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["php-fpm"]
+
