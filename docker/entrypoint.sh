@@ -3,12 +3,16 @@ set -e
 
 echo "=== SkillHub API démarrage ==="
 
+# Génération APP_KEY si absent
 if [ -z "$APP_KEY" ]; then
-    php artisan key:generate --force
+    echo "Génération APP_KEY..."
+    export APP_KEY="base64:$(head -c 32 /dev/urandom | base64)"
 fi
 
+# Génération JWT_SECRET si absent
 if [ -z "$JWT_SECRET" ]; then
-    php artisan jwt:secret --force
+    echo "Génération JWT_SECRET..."
+    export JWT_SECRET="$(head -c 64 /dev/urandom | base64 | tr -d '=+/' | head -c 64)"
 fi
 
 # Attente MySQL
