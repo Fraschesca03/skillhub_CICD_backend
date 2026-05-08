@@ -53,6 +53,8 @@ class FormationController extends Controller
     {
         $formation = Formation::with('formateur:id,nom,email')
             ->withCount('inscriptions')
+            ->withCount('ratings as nombre_avis')
+            ->withAvg('ratings as note_moyenne', 'note')
             ->find($id);
 
         if (! $formation) {
@@ -73,7 +75,19 @@ class FormationController extends Controller
 
         ActivityLogService::consultationFormation($formation->id, $utilisateurId);
 
-        return response()->json($formation->fresh(['formateur:id,nom,email']));
+        // Recharger avec les memes agregats (le increment de vue a desynchronise l'instance)
+        $formation = Formation::with('formateur:id,nom,email')
+            ->withCount('inscriptions')
+            ->withCount('ratings as nombre_avis')
+            ->withAvg('ratings as note_moyenne', 'note')
+            ->find($id);
+
+        // Arrondir la moyenne a 2 decimales (null si aucune note)
+        if ($formation->note_moyenne !== null) {
+            $formation->note_moyenne = round((float) $formation->note_moyenne, 2);
+        }
+
+        return response()->json($formation);
     }
 
     /**

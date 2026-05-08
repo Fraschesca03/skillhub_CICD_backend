@@ -79,6 +79,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
     // GET /formations/{id}/modules (index)
 
 
+    // Verifie que la liste des modules est renvoyee triee par ordre croissant.
     #[\PHPUnit\Framework\Attributes\Test]
     public function modules_index_retourne_liste_triee_par_ordre(): void
     {
@@ -96,6 +97,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
         $this->assertEquals(2, $data[1]['ordre']);
     }
 
+    // Verifie que la route renvoie un tableau vide quand la formation n a pas de module.
     #[\PHPUnit\Framework\Attributes\Test]
     public function modules_index_retourne_tableau_vide_si_aucun_module(): void
     {
@@ -112,6 +114,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
     // POST /formations/{id}/modules (store)
 
 
+    // Le formateur proprietaire peut ajouter un module a sa formation (HTTP 201).
     #[\PHPUnit\Framework\Attributes\Test]
     public function modules_store_cree_un_module_pour_formateur_proprietaire(): void
     {
@@ -130,6 +133,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
         $this->assertDatabaseHas('modules', ['titre' => 'Intro PHP']);
     }
 
+    // Un apprenant n a pas le droit de creer un module : on attend HTTP 403.
     #[\PHPUnit\Framework\Attributes\Test]
     public function modules_store_echoue_pour_apprenant(): void
     {
@@ -146,6 +150,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
         $response->assertStatus(403);
     }
 
+    // Un formateur ne peut pas ajouter un module a la formation d un autre formateur (HTTP 403).
     #[\PHPUnit\Framework\Attributes\Test]
     public function modules_store_echoue_pour_autre_formateur(): void
     {
@@ -162,6 +167,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
         $response->assertStatus(403);
     }
 
+    // Sans token JWT, la creation de module doit etre rejetee (HTTP 401).
     #[\PHPUnit\Framework\Attributes\Test]
     public function modules_store_echoue_sans_token(): void
     {
@@ -176,6 +182,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
         $response->assertStatus(401);
     }
 
+    // Quand la formation cible n existe pas, on attend une 404.
     #[\PHPUnit\Framework\Attributes\Test]
     public function modules_store_echoue_si_formation_inexistante(): void
     {
@@ -190,6 +197,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
         $response->assertStatus(404);
     }
 
+    // Si les champs obligatoires sont vides, la validation renvoie HTTP 422.
     #[\PHPUnit\Framework\Attributes\Test]
     public function modules_store_echoue_si_champs_manquants(): void
     {
@@ -210,6 +218,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
     // PUT /modules/{id} (update)
 
 
+    // Le formateur proprietaire peut modifier le titre/contenu de son module.
     #[\PHPUnit\Framework\Attributes\Test]
     public function modules_update_modifie_module_par_formateur_proprietaire(): void
     {
@@ -227,6 +236,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
             ->assertJsonPath('module.titre', 'Titre Modifié');
     }
 
+    // Un formateur ne peut pas modifier le module d un autre formateur (HTTP 403).
     #[\PHPUnit\Framework\Attributes\Test]
     public function modules_update_echoue_pour_autre_formateur(): void
     {
@@ -244,6 +254,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
         $response->assertStatus(403);
     }
 
+    // Modifier un module qui n existe pas renvoie HTTP 404.
     #[\PHPUnit\Framework\Attributes\Test]
     public function modules_update_echoue_si_module_inexistant(): void
     {
@@ -262,6 +273,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
     // DELETE /modules/{id} (destroy)
 
 
+    // Le formateur proprietaire peut supprimer son module (et il disparait en base).
     #[\PHPUnit\Framework\Attributes\Test]
     public function modules_destroy_supprime_module_par_formateur(): void
     {
@@ -279,6 +291,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
         $this->assertDatabaseMissing('modules', ['id' => $module->id]);
     }
 
+    // Un apprenant ne peut pas supprimer un module : HTTP 403.
     #[\PHPUnit\Framework\Attributes\Test]
     public function modules_destroy_echoue_pour_apprenant(): void
     {
@@ -300,6 +313,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
     // POST /modules/{id}/terminer
 
 
+    // Quand un apprenant termine 1 module sur 2, sa progression passe a 50%.
     #[\PHPUnit\Framework\Attributes\Test]
     public function modules_terminer_met_a_jour_la_progression(): void
     {
@@ -320,6 +334,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
             ->assertJsonFragment(['progression' => 50]);
     }
 
+    // Un apprenant non inscrit a la formation ne peut pas terminer un module (HTTP 403).
     #[\PHPUnit\Framework\Attributes\Test]
     public function modules_terminer_echoue_si_non_inscrit(): void
     {
@@ -337,6 +352,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
         $response->assertStatus(403);
     }
 
+    // Terminer un module qui n existe pas renvoie HTTP 404.
     #[\PHPUnit\Framework\Attributes\Test]
     public function modules_terminer_echoue_si_module_inexistant(): void
     {
@@ -351,6 +367,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
         $response->assertStatus(404);
     }
 
+    // Terminer 2 fois le meme module renvoie un message indiquant qu il est deja termine.
     #[\PHPUnit\Framework\Attributes\Test]
     public function modules_terminer_retourne_message_si_deja_termine(): void
     {
@@ -367,6 +384,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
             ->assertJsonFragment(['message' => 'Ce module est déjà terminé']);
     }
 
+    // Un formateur ne peut pas terminer un module (action reservee aux apprenants) : HTTP 403.
     #[\PHPUnit\Framework\Attributes\Test]
     public function modules_terminer_echoue_pour_formateur(): void
     {
@@ -391,6 +409,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
     // POST /formations/{id}/inscription (store)
 
 
+    // Un apprenant peut s inscrire a une formation : on verifie HTTP 201 et la ligne en base.
     #[\PHPUnit\Framework\Attributes\Test]
     public function inscription_store_inscrit_apprenant_a_formation(): void
     {
@@ -413,6 +432,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
         ]);
     }
 
+    // Un formateur ne peut pas s inscrire a une formation : HTTP 403.
     #[\PHPUnit\Framework\Attributes\Test]
     public function inscription_store_echoue_pour_formateur(): void
     {
@@ -428,6 +448,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
         $response->assertStatus(403);
     }
 
+    // S inscrire deux fois a la meme formation est refuse (HTTP 409, doublon).
     #[\PHPUnit\Framework\Attributes\Test]
     public function inscription_store_echoue_si_deja_inscrit(): void
     {
@@ -445,6 +466,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
         $response->assertStatus(409);
     }
 
+    // S inscrire a une formation qui n existe pas renvoie HTTP 404.
     #[\PHPUnit\Framework\Attributes\Test]
     public function inscription_store_echoue_si_formation_inexistante(): void
     {
@@ -455,6 +477,76 @@ class ModuleEtInscriptionControllerTest extends TestCase
         $response->assertStatus(404);
     }
 
+    // Regle metier : un apprenant deja inscrit a 5 formations ne peut pas en suivre une 6eme.
+    // On cree 5 inscriptions, on tente la 6eme, on attend HTTP 400 et aucune nouvelle ligne en base.
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function inscription_store_echoue_si_apprenant_a_deja_5_formations(): void
+    {
+        ['user' => $formateur]                     = $this->creerUser('formateur');
+        ['user' => $apprenant, 'token' => $token]  = $this->creerUser('apprenant');
+
+        // Inscrit l apprenant a 5 formations differentes (la limite metier)
+        for ($i = 1; $i <= 5; $i++) {
+            $formation = $this->creerFormation($formateur, ['titre' => 'Formation ' . $i]);
+            $this->inscrire($apprenant, $formation);
+        }
+
+        // Tentative d inscription a une 6eme formation : doit etre refusee
+        $sixieme = $this->creerFormation($formateur, ['titre' => 'Formation 6']);
+
+        $response = $this->postJson(
+            '/api/formations/' . $sixieme->id . '/inscription',
+            [],
+            $this->authHeaders($token)
+        );
+
+        $response->assertStatus(400)
+            ->assertJsonFragment([
+                'message'            => 'Vous ne pouvez pas suivre plus de 5 formations',
+                'max_formations'     => 5,
+                'formations_suivies' => 5,
+            ]);
+
+        // Aucune inscription supplementaire ne doit avoir ete persistee
+        $this->assertDatabaseMissing('inscriptions', [
+            'utilisateur_id' => $apprenant->id,
+            'formation_id'   => $sixieme->id,
+        ]);
+        $this->assertEquals(5, Inscription::where('utilisateur_id', $apprenant->id)->count());
+    }
+
+    // Cas limite : un apprenant avec 4 inscriptions peut bien faire la 5eme (HTTP 201, formations_restantes = 0).
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function inscription_store_autorise_la_5eme_inscription(): void
+    {
+        ['user' => $formateur]                     = $this->creerUser('formateur');
+        ['user' => $apprenant, 'token' => $token]  = $this->creerUser('apprenant');
+
+        // L apprenant suit deja 4 formations (en dessous de la limite)
+        for ($i = 1; $i <= 4; $i++) {
+            $formation = $this->creerFormation($formateur, ['titre' => 'Formation ' . $i]);
+            $this->inscrire($apprenant, $formation);
+        }
+
+        // La 5eme inscription doit reussir et amener le compteur a la limite
+        $cinquieme = $this->creerFormation($formateur, ['titre' => 'Formation 5']);
+
+        $response = $this->postJson(
+            '/api/formations/' . $cinquieme->id . '/inscription',
+            [],
+            $this->authHeaders($token)
+        );
+
+        $response->assertStatus(201)
+            ->assertJsonFragment([
+                'message'              => 'Inscription réussie',
+                'formations_restantes' => 0,
+            ]);
+
+        $this->assertEquals(5, Inscription::where('utilisateur_id', $apprenant->id)->count());
+    }
+
+    // Sans token JWT, l inscription a une formation est refusee (HTTP 401).
     #[\PHPUnit\Framework\Attributes\Test]
     public function inscription_store_echoue_sans_token(): void
     {
@@ -470,6 +562,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
     // DELETE /formations/{id}/inscription (destroy)
 
 
+    // Un apprenant inscrit peut se desinscrire : on verifie HTTP 200 et la suppression en base.
     #[\PHPUnit\Framework\Attributes\Test]
     public function inscription_destroy_desincrit_apprenant(): void
     {
@@ -493,6 +586,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
         ]);
     }
 
+    // Tenter de se desinscrire d une formation a laquelle on n est pas inscrit : HTTP 404.
     #[\PHPUnit\Framework\Attributes\Test]
     public function inscription_destroy_echoue_si_non_inscrit(): void
     {
@@ -509,6 +603,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
         $response->assertStatus(404);
     }
 
+    // Un formateur ne peut pas appeler la route de desinscription : HTTP 403.
     #[\PHPUnit\Framework\Attributes\Test]
     public function inscription_destroy_echoue_pour_formateur(): void
     {
@@ -528,6 +623,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
     // GET /apprenant/formations (mesFormations)
 
 
+    // L apprenant connecte recoit la liste de ses inscriptions (ici 1 seule formation).
     #[\PHPUnit\Framework\Attributes\Test]
     public function mes_formations_retourne_inscriptions_apprenant(): void
     {
@@ -542,6 +638,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
         $this->assertCount(1, $response->json());
     }
 
+    // Un formateur n a pas acces a la liste "mes formations" (HTTP 403).
     #[\PHPUnit\Framework\Attributes\Test]
     public function mes_formations_echoue_pour_formateur(): void
     {
@@ -552,6 +649,7 @@ class ModuleEtInscriptionControllerTest extends TestCase
         $response->assertStatus(403);
     }
 
+    // Sans token, la liste "mes formations" est inaccessible (HTTP 401).
     #[\PHPUnit\Framework\Attributes\Test]
     public function mes_formations_echoue_sans_token(): void
     {

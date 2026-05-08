@@ -39,4 +39,9 @@ class Formation extends Model
     {
         return $this->hasMany(FormationVue::class, 'formation_id');
     }
+
+    public function ratings()
+    {
+        return $this->hasMany(Rating::class, 'formation_id');
+    }
 }

@@ -18,6 +18,15 @@ class User extends Authenticatable implements JWTSubject
         'photo_profil',
     ];
 
+    /**
+     * Valeurs par defaut au moment du INSERT.
+     * La table users (creee aussi par le service Spring Boot) impose
+     * failed_attempts NOT NULL sans DEFAULT cote SQL.
+     */
+    protected $attributes = [
+        'failed_attempts' => 0,
+    ];
+
     protected $hidden = [
         'password',
         'remember_token',
