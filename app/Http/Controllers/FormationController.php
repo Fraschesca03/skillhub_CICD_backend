@@ -210,6 +210,61 @@ class FormationController extends Controller
         return response()->json(['message' => 'Formation supprimée avec succès']);
     }
 
+    /**
+     * Liste des apprenants inscrits a une formation.
+     * Route : GET /formations/{id}/apprenants
+     *
+     * Acces reserve au formateur authentifie ET proprietaire de la formation.
+     *
+     * Reponses :
+     *   200 : tableau d'apprenants {id, nom, email, progression, date_inscription}
+     *         (tableau vide si aucun inscrit)
+     *   401 : JWT manquant ou invalide
+     *   403 : utilisateur non formateur OU formateur non proprietaire
+     *   404 : formation introuvable
+     */
+    public function apprenants($id): JsonResponse
+    {
+        // 1. Authentification (renvoie 401 si JWT absent / invalide)
+        [$user, $erreur] = $this->authentifierUtilisateur();
+        if ($erreur) {
+            return $erreur;
+        }
+
+        // 2. Verifier l'existence de la formation (404 avant 403 pour respecter le contrat)
+        $formation = Formation::find($id);
+        if (! $formation) {
+            return response()->json(['message' => self::MSG_FORMATION_INTRO], 404);
+        }
+
+        // 3. Verifier que l'utilisateur est formateur ET proprietaire
+        if ($user->role !== 'formateur' || $formation->formateur_id !== $user->id) {
+            return response()->json([
+                'message' => 'Action reservee au formateur proprietaire de la formation',
+            ], 403);
+        }
+
+        // 4. Charger les inscriptions avec les infos de chaque apprenant.
+        //    On selectionne uniquement les colonnes utiles cote SQL pour eviter
+        //    de charger des champs sensibles (password, etc.).
+        $inscriptions = $formation->inscriptions()
+            ->with('utilisateur:id,nom,email')
+            ->get();
+
+        // 5. Mapper la reponse au format demande par le contrat de l'API
+        $apprenants = $inscriptions->map(function ($inscription) {
+            return [
+                'id'               => $inscription->utilisateur->id,
+                'nom'              => $inscription->utilisateur->nom,
+                'email'            => $inscription->utilisateur->email,
+                'progression'      => $inscription->progression,
+                'date_inscription' => $inscription->created_at,
+            ];
+        });
+
+        return response()->json($apprenants);
+    }
+
     // ─── Helpers prives ──────────────────────────────────────────
 
     private function formationRules(): array
