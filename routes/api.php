@@ -23,7 +23,7 @@ Route::post('/logout',   [AuthController::class, 'logout']);
 Route::post('/profil/photo', [AuthController::class, 'uploadPhoto']);
 
 //  Formations
-// Routes protegees par le middleware SSO (appel REST au microservice Spring Boot) ---
+// Routes protegees par le middleware SSO (appel REST au microservice Spring Boot)
 Route::middleware('auth.sso')->group(function () {
     // Route specialement pour la demo SSO
     Route::get('/sso/profile', function (\Illuminate\Http\Request $request) {
@@ -40,12 +40,12 @@ Route::middleware('auth.sso')->group(function () {
     Route::get('/formations-protected', [\App\Http\Controllers\FormationController::class, 'index']);
 });
 
-
-Route::get('/formations',        [FormationController::class, 'index']);
-Route::get('/formations/{id}',   [FormationController::class, 'show']);
-Route::post('/formations',       [FormationController::class, 'store']);
-Route::put('/formations/{id}',   [FormationController::class, 'update']);
-Route::delete('/formations/{id}', [FormationController::class, 'destroy']);
+Route::get('/formations',                 [FormationController::class, 'index']);
+Route::get('/formations/{id}',            [FormationController::class, 'show']);
+Route::post('/formations',                [FormationController::class, 'store']);
+Route::put('/formations/{id}',            [FormationController::class, 'update']);
+Route::delete('/formations/{id}',         [FormationController::class, 'destroy']);
+Route::get('/formations/{id}/apprenants', [FormationController::class, 'apprenants']);
 
 
 //  Modules
